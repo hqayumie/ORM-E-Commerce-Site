@@ -1,19 +1,56 @@
 const router = require('express').Router();
+const { json } = require('sequelize/types');
 const { Product, Category, Tag, ProductTag } = require('../../models');
 
 // The `/api/products` endpoint
 
-// get all products
-router.get('/', (req, res) => {
-  // find all products
+// get all products // find all products
   // be sure to include its associated Category and Tag data
+router.get('/', async (req, res) => {
+  try{
+    const dbProductData = await Product.findAll({
+      include: [
+        {
+          model: Category
+        },
+        {
+          model: Tag
+        }
+      ],
+    });
+    res.status(200).json(dbProductData);
+  }catch (err) {
+    console.log(err);
+    res.status(500).json(err);
+  }
 });
 
-// get one product
-router.get('/:id', (req, res) => {
-  // find a single product by its `id`
+// get one product // find a single product by its `id`
   // be sure to include its associated Category and Tag data
+router.get('/:id',async (req, res) => {
+  const dbProductData= await Product.findByPk(req.params.id,{
+    include: [
+      {
+        model: Category
+      },
+      {
+        model: Tag
+      }
+    ]
+  });
+  if (!dbProductData) {
+    res
+      .status(404)
+      .json({ message: "No product with this id." });
+    return;
+  }
+  res.json(dbProductData);
+})
+.catch((err) => {
+  console.log(err);
+  res.status(500).json(err);
 });
+
 
 // create new product
 router.post('/', (req, res) => {
@@ -25,9 +62,10 @@ router.post('/', (req, res) => {
       tagIds: [1, 2, 3, 4]
     }
   */
+
   Product.create(req.body)
     .then((product) => {
-      // if there's product tags, we need to create pairings to bulk create in the ProductTag model
+      //  creating pairings to bulk create in the ProductTag model if there are product tags
       if (req.body.tagIds.length) {
         const productTagIdArr = req.body.tagIds.map((tag_id) => {
           return {
@@ -37,7 +75,7 @@ router.post('/', (req, res) => {
         });
         return ProductTag.bulkCreate(productTagIdArr);
       }
-      // if no product tags, just respond
+     
       res.status(200).json(product);
     })
     .then((productTagIds) => res.status(200).json(productTagIds))
